@@ -98,12 +98,20 @@ await Actor.main(async () => {
         url, 
         numberOfPages = 1, 
         timeBetweenPages = 5,
-        proxyConfiguration = { useApifyProxy: true }
+        proxyConfiguration = { useApifyProxy: true },
+        cookies = []
     } = input;
 
     // Validate URL
     if (!url.includes('https://app.apollo.io/')) {
         throw new Error('URL must be a valid Apollo.io list URL (https://app.apollo.io/...)');
+    }
+
+    // Check if cookies are provided
+    if (!cookies || cookies.length === 0) {
+        console.log('WARNING: No cookies provided. Scraping may fail without authentication!');
+    } else {
+        console.log(`Loaded ${cookies.length} cookies for authentication`);
     }
 
     // Limit pages to 100
@@ -124,6 +132,26 @@ await Actor.main(async () => {
         const context = await browser.newContext({
             userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         });
+
+        // Add cookies to the browser context
+        if (cookies && cookies.length > 0) {
+            // Convert cookies to Playwright format
+            const playwrightCookies = cookies.map(cookie => ({
+                name: cookie.name,
+                value: cookie.value,
+                domain: cookie.domain,
+                path: cookie.path || '/',
+                expires: cookie.expirationDate ? cookie.expirationDate : -1,
+                httpOnly: cookie.httpOnly || false,
+                secure: cookie.secure || false,
+                sameSite: cookie.sameSite === 'no_restriction' ? 'None' : 
+                         cookie.sameSite === 'lax' ? 'Lax' : 
+                         cookie.sameSite === 'strict' ? 'Strict' : 'None'
+            }));
+
+            await context.addCookies(playwrightCookies);
+            console.log('Cookies loaded successfully into browser context');
+        }
 
         const page = await context.newPage();
 
@@ -206,6 +234,3 @@ await Actor.main(async () => {
 
     console.log('Scraping completed!');
 });
-
-
-
